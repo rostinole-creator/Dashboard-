@@ -11,7 +11,7 @@ const shift = (k, n) => { const d = dateOf(k); d.setDate(d.getDate() + n); retur
 const todayKey = () => keyOf(new Date());
 
 const SETTINGS_DEFAULT = { waterGoal: 2500, glass: 250, weightGoal: null, trainingGoal: 3 };
-const TRAININGS = ['Kraft', 'Laufen', 'Rad', 'Schwimmen', 'Yoga', 'Mobility', 'Sonstiges'];
+const TRAININGS = ['Kraft', 'Laufen', 'Rad', 'Schwimmen', 'Kampfsport', 'Yoga', 'Mobility', 'Sonstiges'];
 
 function normalize(d) {
   d.settings = { ...SETTINGS_DEFAULT, ...(d.settings || {}) };
