@@ -4,9 +4,9 @@ Ein schlankes Dashboard für mehr Disziplin im Alltag. Läuft im Browser auf Han
 
 ## Funktionen
 
-- **Heute**: Fortschrittsring, Top-3-Fokus-Aufgaben, Habits zum Abhaken mit 🔥-Serie, Abend-Check-in (Stimmung + Notiz). Mit ‹ › kannst du vergangene Tage nachtragen.
-- **Woche**: Erfüllungsquote, perfekte Tage, Ø-Stimmung, Balken pro Tag sowie pro Habit Serie, Rekord und 30-Tage-Quote.
-- **Habits**: Gewohnheiten anlegen, sortieren, löschen. Backup als JSON exportieren/importieren.
+- **Heute**: Fortschrittsring, Top-3-Fokus-Aufgaben, Habits zum Abhaken mit 🔥-Serie, Gesundheit (💧 Wasser per Glas-Button, ⚖️ Gewicht, 🏋️ Training mit Art und Minuten), Abend-Check-in (Stimmung + Notiz). Mit ‹ › kannst du vergangene Tage nachtragen.
+- **Woche**: Erfüllungsquote, perfekte Tage, Ø-Stimmung, Balken pro Tag sowie pro Habit Serie, Rekord und 30-Tage-Quote. Dazu Wasser pro Tag, Trainingstage und der Gewichtsverlauf der letzten 30 Tage.
+- **Ziele**: Gewohnheiten anlegen, sortieren, löschen. Gesundheitsziele festlegen (Wasser pro Tag, Glasgröße, Zielgewicht, Trainings pro Woche). Backup als JSON exportieren/importieren.
 
 ## Starten
 
@@ -27,7 +27,7 @@ python3 -m http.server 8000
 
 ## Daten
 
-Alles liegt lokal im Browser (`localStorage`, Schlüssel `lifedash.v1`). Es gibt keine Synchronisierung zwischen Geräten. Mach regelmäßig ein Backup über **Habits → Backup exportieren**.
+Alles liegt lokal im Browser (`localStorage`, Schlüssel `lifedash.v1`). Es gibt keine Synchronisierung zwischen Geräten. Mach regelmäßig ein Backup über **Ziele → Backup exportieren**.
 
 ## Mögliche nächste Schritte
 
@@ -35,4 +35,4 @@ Alles liegt lokal im Browser (`localStorage`, Schlüssel `lifedash.v1`). Es gibt
 - Erinnerungen/Push-Benachrichtigungen
 - Wochenrückblick mit Reflexionsfragen
 - Fokus-Timer (Pomodoro)
-- Gesundheits-Tracking (Schlaf, Gewicht, Training)
+- Schlaf-Tracking

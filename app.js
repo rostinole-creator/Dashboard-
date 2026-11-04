@@ -10,6 +10,14 @@ const dateOf = (k) => { const [y, m, d] = k.split('-').map(Number); return new D
 const shift = (k, n) => { const d = dateOf(k); d.setDate(d.getDate() + n); return keyOf(d); };
 const todayKey = () => keyOf(new Date());
 
+const SETTINGS_DEFAULT = { waterGoal: 2500, glass: 250, weightGoal: null, trainingGoal: 3 };
+const TRAININGS = ['Kraft', 'Laufen', 'Rad', 'Schwimmen', 'Yoga', 'Mobility', 'Sonstiges'];
+
+function normalize(d) {
+  d.settings = { ...SETTINGS_DEFAULT, ...(d.settings || {}) };
+  return d;
+}
+
 function defaults() {
   const t = todayKey();
   return {
@@ -21,13 +29,14 @@ function defaults() {
       'Kein Handy nach 22 Uhr',
     ].map((name) => ({ id: uid(), name, created: t })),
     days: {},
+    settings: { ...SETTINGS_DEFAULT },
   };
 }
 
 function load() {
   try {
     const d = JSON.parse(localStorage.getItem(KEY));
-    if (d && Array.isArray(d.habits) && d.days && typeof d.days === 'object') return d;
+    if (d && Array.isArray(d.habits) && d.days && typeof d.days === 'object') return normalize(d);
   } catch (e) { /* ignorieren, Standard nutzen */ }
   return defaults();
 }
@@ -43,7 +52,12 @@ function day(k, create = false) {
   if (!d && create) {
     d = data.days[k] = { habits: {}, focus: [{ text: '', done: false }, { text: '', done: false }, { text: '', done: false }], mood: null, note: '' };
   }
-  return d || { habits: {}, focus: [], mood: null, note: '' };
+  if (d) {
+    if (d.water == null) d.water = 0;
+    if (d.weight === undefined) d.weight = null;
+    if (!Array.isArray(d.training)) d.training = [];
+  }
+  return d || { habits: {}, focus: [], mood: null, note: '', water: 0, weight: null, training: [] };
 }
 
 /* ---------- Berechnungen ---------- */
@@ -84,6 +98,63 @@ function habitRate(h, days) {
     if (isDone(k, h.id)) on++;
   }
   return total ? on / total : null;
+}
+
+/* ---------- Gesundheit ---------- */
+const num = (n, max = 1, min = 0) => Number(n).toLocaleString('de-DE', { minimumFractionDigits: min, maximumFractionDigits: max });
+const liters = (ml) => num(ml / 1000, 2);
+const parseNum = (v) => { const n = parseFloat(String(v).trim().replace(',', '.')); return Number.isFinite(n) ? n : null; };
+const signed = (n) => (n > 0 ? '+' : n < 0 ? '−' : '±') + num(Math.abs(n), 1, 1);
+
+function lastWeightBefore(k) {
+  let best = null;
+  for (const [dk, d] of Object.entries(data.days)) {
+    if (dk < k && d.weight != null && (!best || dk > best.k)) best = { k: dk, w: d.weight };
+  }
+  return best;
+}
+
+function weekStart(k) { return shift(k, -((dateOf(k).getDay() + 6) % 7)); } // Montag
+
+function sessionsBetween(a, b) {
+  const out = [];
+  for (let k = a; k <= b; k = shift(k, 1)) (day(k).training || []).forEach((t) => out.push({ ...t, k }));
+  return out;
+}
+
+function weightChart(t) {
+  const keys = Array.from({ length: 30 }, (_, i) => shift(t, i - 29));
+  const pts = keys.map((k, i) => ({ i, k, w: day(k).weight })).filter((p) => p.w != null);
+  if (pts.length < 2) {
+    return `<p class="empty">${pts.length ? `Bisher ein Eintrag: ${num(pts[0].w)} kg. ` : ''}Trag an mindestens zwei Tagen dein Gewicht ein, dann erscheint hier der Verlauf.</p>`;
+  }
+  const goal = data.settings.weightGoal;
+  const vals = pts.map((p) => p.w);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (goal != null && goal >= lo - 3 && goal <= hi + 3) { lo = Math.min(lo, goal); hi = Math.max(hi, goal); }
+  lo -= 0.5; hi += 0.5;
+  const W = 320, H = 130, L = 34, R = 8, T = 10, B = 22;
+  const x = (i) => L + (i / 29) * (W - L - R);
+  const y = (w) => T + (1 - (w - lo) / (hi - lo)) * (H - T - B);
+  const line = pts.map((p) => `${x(p.i).toFixed(1)},${y(p.w).toFixed(1)}`).join(' ');
+  const first = pts[0], last = pts[pts.length - 1];
+  const fmtD = (k) => dateOf(k).toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' });
+  return `
+    <div class="w-summary">
+      <div><span class="n">${num(last.w)}</span> kg <span class="muted">aktuell</span></div>
+      <div class="muted">${signed(last.w - first.w)} kg seit ${fmtD(first.k)}${goal != null ? ` · Ziel ${num(goal)} kg (${Math.abs(last.w - goal) < 0.05 ? 'erreicht 🎉' : `noch ${num(Math.abs(last.w - goal), 1, 1)} kg`})` : ''}</div>
+    </div>
+    <svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gewichtsverlauf der letzten 30 Tage">
+      <line class="grid" x1="${L}" x2="${W - R}" y1="${y(hi - 0.5)}" y2="${y(hi - 0.5)}"/>
+      <line class="grid" x1="${L}" x2="${W - R}" y1="${y(lo + 0.5)}" y2="${y(lo + 0.5)}"/>
+      <text class="ax" x="${L - 6}" y="${y(hi - 0.5) + 3}" text-anchor="end">${num(hi - 0.5)}</text>
+      <text class="ax" x="${L - 6}" y="${y(lo + 0.5) + 3}" text-anchor="end">${num(lo + 0.5)}</text>
+      ${goal != null && goal >= lo && goal <= hi ? `<line class="goal" x1="${L}" x2="${W - R}" y1="${y(goal)}" y2="${y(goal)}"/>` : ''}
+      <polyline class="wline" points="${line}"/>
+      ${pts.map((p) => `<circle class="wdot" cx="${x(p.i)}" cy="${y(p.w)}" r="${p === last ? 4 : 2.5}"><title>${fmtD(p.k)}: ${num(p.w)} kg</title></circle>`).join('')}
+      <text class="ax" x="${L}" y="${H - 6}">${fmtD(keys[0])}</text>
+      <text class="ax" x="${W - R}" y="${H - 6}" text-anchor="end">heute</text>
+    </svg>`;
 }
 
 /* ---------- Helfer ---------- */
@@ -187,6 +258,8 @@ function renderToday() {
       }).join('') : '<p class="empty">Noch keine Habits.</p>'}
     </section>
 
+${renderHealth(k, d)}
+
     <section class="card">
       <h2>Abend-Check-in</h2>
       <span class="label">Wie war ${isToday ? 'dein Tag' : 'der Tag'}?</span>
@@ -195,6 +268,60 @@ function renderToday() {
       </div>
       <label class="label" for="note">Was lief gut? Was machst du morgen besser?</label>
       <textarea id="note" data-note placeholder="Kurze Notiz …">${esc(d.note || '')}</textarea>
+    </section>`;
+}
+
+function renderHealth(k, d) {
+  const S = data.settings;
+  const water = d.water || 0;
+  const prev = lastWeightBefore(k);
+  const ws = weekStart(k);
+  const weekSessions = sessionsBetween(ws, k);
+  const sessions = d.training || [];
+  const diff = d.weight != null && prev ? d.weight - prev.w : null;
+  return `
+    <section class="card">
+      <h2>Gesundheit</h2>
+
+      <div class="h-block">
+        <div class="h-top">
+          <span class="h-title">💧 Wasser</span>
+          <span class="h-val"><b>${liters(water)}</b> / ${liters(S.waterGoal)} L</span>
+        </div>
+        <div class="meter ${water >= S.waterGoal ? 'met' : ''}"><div style="width:${Math.min(100, (water / S.waterGoal) * 100)}%"></div></div>
+        <div class="water-btns">
+          <button class="btn ghost" data-act="water" data-v="-1" ${water <= 0 ? 'disabled' : ''} aria-label="Ein Glas abziehen">− ${S.glass} ml</button>
+          <button class="btn" data-act="water" data-v="1">+ ${S.glass} ml</button>
+        </div>
+      </div>
+
+      <div class="h-block">
+        <div class="h-top">
+          <label class="h-title" for="weight">⚖️ Gewicht</label>
+          <span class="h-val">${diff != null ? `${signed(diff)} kg seit ${dateOf(prev.k).toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' })}` : prev ? `zuletzt ${num(prev.w)} kg` : ''}</span>
+        </div>
+        <div class="weight-row">
+          <input id="weight" class="field" data-weight type="text" inputmode="decimal" placeholder="z. B. 78,4" value="${d.weight != null ? num(d.weight) : ''}" autocomplete="off">
+          <span class="unit">kg</span>
+        </div>
+      </div>
+
+      <div class="h-block">
+        <div class="h-top">
+          <span class="h-title">🏋️ Training</span>
+          <span class="h-val ${weekSessions.length >= S.trainingGoal ? 'ok' : ''}">Diese Woche <b>${weekSessions.length}/${S.trainingGoal}</b></span>
+        </div>
+        ${sessions.map((t, i) => `
+          <div class="session">
+            <span>${esc(t.type)}${t.min ? ` · ${t.min} Min.` : ''}</span>
+            <button class="icon-btn sm" data-act="del-training" data-i="${i}" aria-label="Training entfernen">${ICON.trash}</button>
+          </div>`).join('')}
+        <form class="add training-form" data-form="training">
+          <select class="field" name="type" aria-label="Art des Trainings">${TRAININGS.map((t) => `<option>${t}</option>`).join('')}</select>
+          <input class="field min" name="min" type="number" inputmode="numeric" min="1" max="600" placeholder="Min." aria-label="Dauer in Minuten">
+          <button class="btn" type="submit">Eintragen</button>
+        </form>
+      </div>
     </section>`;
 }
 
@@ -243,12 +370,68 @@ function renderWeek() {
           <span class="info">🔥 ${streak(h.id)} · 🏆 ${bestStreak(h.id)} · ${pct(habitRate(h, 30))}</span>
           <div class="dots">${keys.map((k) => `<span class="dot ${!activeOn(h, k) ? 'na' : isDone(k, h.id) ? 'on' : ''}" title="${WD[dateOf(k).getDay()]}"></span>`).join('')}</div>
         </div>`).join('') : '<p class="empty">Noch keine Habits.</p>'}
+    </section>
+
+    ${renderWeekHealth(t, keys)}`;
+}
+
+function renderWeekHealth(t, keys) {
+  const S = data.settings;
+  const waters = keys.map((k) => day(k).water || 0);
+  const waterDays = waters.filter((w) => w > 0);
+  const waterAvg = waterDays.length ? waterDays.reduce((a, b) => a + b, 0) / waterDays.length : null;
+  const sessions = sessionsBetween(keys[0], t);
+  const minutes = sessions.reduce((n, s) => n + (s.min || 0), 0);
+  const ws = keys.map((k) => day(k).weight).filter((w) => w != null);
+  const wDiff = ws.length >= 2 ? ws[ws.length - 1] - ws[0] : null;
+  return `
+    <section class="card">
+      <h2>Gesundheit <span class="count">letzte 7 Tage</span></h2>
+      <div class="stats">
+        <div class="stat"><div class="n">${waterAvg == null ? '–' : liters(waterAvg)}</div><div class="t">Ø Liter Wasser</div></div>
+        <div class="stat"><div class="n">${sessions.length}</div><div class="t">Trainings${minutes ? ` · ${minutes} Min.` : ''}</div></div>
+        <div class="stat"><div class="n">${wDiff == null ? '–' : signed(wDiff)}</div><div class="t">kg Gewicht</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Wasser pro Tag <span class="count">Ziel ${liters(S.waterGoal)} L</span></h2>
+      <div class="bars">
+        ${keys.map((k, i) => {
+          const w = waters[i];
+          return `<div class="bar-col ${k === t ? 'today' : ''}">
+            <span class="v">${w ? liters(w) : '–'}</span>
+            <div class="bar-wrap"><div class="bar-fill water ${w >= S.waterGoal ? 'met' : ''}" style="height:${Math.min(100, (w / S.waterGoal) * 100)}%"></div></div>
+            <span class="d">${WD[dateOf(k).getDay()]}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Training</h2>
+      <div class="train-week">
+        ${keys.map((k) => {
+          const ss = day(k).training || [];
+          const m = ss.reduce((n, s) => n + (s.min || 0), 0);
+          return `<div class="tw ${ss.length ? 'on' : ''} ${k === t ? 'today' : ''}" title="${esc(ss.map((s) => s.type).join(', '))}">
+            <span class="d">${WD[dateOf(k).getDay()]}</span>
+            <span class="tw-box">${ss.length ? (ss.length > 1 ? ss.length + '×' : '✓') : ''}</span>
+            <span class="v">${m ? m + "'" : ''}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Gewicht <span class="count">30 Tage</span></h2>
+      ${weightChart(t)}
     </section>`;
 }
 
 function renderSettings() {
   return `
-    <header class="head"><div class="grow"><h1>Habits</h1><p class="sub">Wenige, klare Gewohnheiten schlagen viele vage.</p></div></header>
+    <header class="head"><div class="grow"><h1>Habits & Ziele</h1><p class="sub">Wenige, klare Gewohnheiten schlagen viele vage.</p></div></header>
 
     <section class="card">
       <h2>Deine Gewohnheiten <span class="count">${data.habits.length}</span></h2>
@@ -264,6 +447,16 @@ function renderSettings() {
         <button class="btn" type="submit">Hinzufügen</button>
       </form>
       <p class="hint">Tipp: Formuliere konkret und messbar („20 Min. lesen“ statt „mehr lesen“). 3–6 Habits sind ein guter Start.</p>
+    </section>
+
+    <section class="card">
+      <h2>Gesundheitsziele</h2>
+      <div class="goal-grid">
+        <label><span class="label">Wasser pro Tag (L)</span><input class="field" data-setting="waterGoal" inputmode="decimal" value="${num(data.settings.waterGoal / 1000, 2)}"></label>
+        <label><span class="label">Glasgröße (ml)</span><input class="field" data-setting="glass" inputmode="numeric" value="${data.settings.glass}"></label>
+        <label><span class="label">Zielgewicht (kg)</span><input class="field" data-setting="weightGoal" inputmode="decimal" placeholder="optional" value="${data.settings.weightGoal != null ? num(data.settings.weightGoal) : ''}"></label>
+        <label><span class="label">Trainings pro Woche</span><input class="field" data-setting="trainingGoal" inputmode="numeric" value="${data.settings.trainingGoal}"></label>
+      </div>
     </section>
 
     <section class="card">
@@ -325,6 +518,19 @@ $('#app').addEventListener('click', (e) => {
       save();
       break;
     }
+    case 'water': {
+      const d = day(viewKey, true);
+      d.water = Math.max(0, (d.water || 0) + Number(b.dataset.v) * data.settings.glass);
+      save();
+      if (Number(b.dataset.v) > 0 && d.water >= data.settings.waterGoal && d.water - data.settings.glass < data.settings.waterGoal) toast('Wasserziel erreicht 💧');
+      break;
+    }
+    case 'del-training': {
+      const d = day(viewKey, true);
+      d.training.splice(Number(b.dataset.i), 1);
+      save();
+      break;
+    }
     case 'up': case 'down': {
       const i = data.habits.findIndex((h) => h.id === id);
       const j = act === 'up' ? i - 1 : i + 1;
@@ -369,6 +575,12 @@ $('#app').addEventListener('input', (e) => {
     d.focus[el.dataset.focus].text = el.value;
     if (!el.value.trim()) d.focus[el.dataset.focus].done = false;
     save();
+  } else if (el.hasAttribute('data-weight')) {
+    const d = day(viewKey, true);
+    const v = el.value.trim();
+    if (!v) { d.weight = null; save(); return; }
+    const n = parseNum(v);
+    if (n != null && n >= 20 && n <= 400) { d.weight = Math.round(n * 10) / 10; save(); }
   } else if (el.hasAttribute('data-note')) {
     day(viewKey, true).note = el.value;
     save();
@@ -380,6 +592,17 @@ $('#app').addEventListener('keydown', (e) => {
 });
 
 $('#app').addEventListener('submit', (e) => {
+  if (e.target.dataset.form === 'training') {
+    e.preventDefault();
+    const f = e.target;
+    const min = parseInt(f.min.value, 10);
+    if (!(min > 0 && min <= 600)) { toast('Wie viele Minuten? (1–600)'); f.min.focus(); return; }
+    day(viewKey, true).training.push({ type: f.type.value, min });
+    save();
+    render();
+    toast('Training eingetragen 💪');
+    return;
+  }
   if (e.target.dataset.form !== 'add') return;
   e.preventDefault();
   const name = e.target.name.value.trim();
@@ -391,13 +614,31 @@ $('#app').addEventListener('submit', (e) => {
 });
 
 $('#app').addEventListener('change', (e) => {
-  if (!e.target.hasAttribute('data-import')) return;
+  const el = e.target;
+  if (el.hasAttribute('data-weight')) { render(); return; }
+  if (el.dataset.setting) {
+    const key = el.dataset.setting;
+    const n = parseNum(el.value);
+    const rules = {
+      waterGoal: () => n >= 0.25 && n <= 10 && Math.round(n * 1000),
+      glass: () => n >= 50 && n <= 2000 && Math.round(n),
+      weightGoal: () => (el.value.trim() === '' ? null : n >= 20 && n <= 400 && Math.round(n * 10) / 10),
+      trainingGoal: () => n >= 1 && n <= 21 && Math.round(n),
+    };
+    const v = rules[key]();
+    if (v === false || v === undefined || Number.isNaN(v)) { toast('Ungültiger Wert'); render(); return; }
+    data.settings[key] = v;
+    save();
+    toast('Gespeichert');
+    return;
+  }
+  if (!el.hasAttribute('data-import')) return;
   const file = e.target.files[0];
   if (!file) return;
   file.text().then((txt) => {
     const d = JSON.parse(txt);
     if (!d || !Array.isArray(d.habits) || typeof d.days !== 'object') throw new Error('format');
-    data = d;
+    data = normalize(d);
     save();
     render();
     toast('Backup importiert.');

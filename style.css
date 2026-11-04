@@ -8,6 +8,7 @@
   --accent: #d98a00;
   --accent-soft: #fbedd3;
   --good: #1f9d55;
+  --water: #2f80ed;
   --ring-track: #e7e4dd;
   --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
   --radius: 16px;
@@ -24,6 +25,7 @@
     --accent: #f5a524;
     --accent-soft: #3a2c12;
     --good: #3ccf7a;
+    --water: #4ea1ff;
     --ring-track: #262a34;
     --shadow: none;
     color-scheme: dark;
@@ -39,6 +41,7 @@
   --accent: #f5a524;
   --accent-soft: #3a2c12;
   --good: #3ccf7a;
+  --water: #4ea1ff;
   --ring-track: #262a34;
   --shadow: none;
   color-scheme: dark;
@@ -216,3 +219,53 @@ textarea:focus, .field:focus { border-color: var(--accent); }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* Gesundheit */
+.h-block + .h-block { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 14px; }
+.h-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.h-title { font-weight: 600; }
+.h-val { color: var(--muted); font-size: .88rem; font-variant-numeric: tabular-nums; text-align: right; }
+.h-val b { color: var(--text); font-size: 1.05rem; }
+.h-val.ok b { color: var(--good); }
+.meter { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-bottom: 12px; }
+.meter > div { height: 100%; background: var(--water); border-radius: 999px; transition: width .4s cubic-bezier(.2,.8,.2,1); }
+.meter.met > div { background: var(--good); }
+.water-btns { display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; }
+.btn:disabled { opacity: .4; cursor: default; }
+.weight-row { display: flex; align-items: center; gap: 10px; }
+.weight-row .field { max-width: 140px; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.weight-row .unit { color: var(--muted); }
+.session { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--surface-2); border-radius: 10px; margin-bottom: 6px; }
+.icon-btn.sm { width: 30px; height: 30px; border-radius: 9px; }
+.icon-btn.sm svg { width: 15px; height: 15px; }
+.training-form { margin-top: 8px; }
+.training-form select { flex: 1.4; appearance: none; -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 28px; }
+.training-form .min { flex: 0 0 72px; }
+.training-form .btn { padding: 10px 12px; }
+
+.bar-fill.water { background: var(--water); }
+.bar-fill.met { background: var(--good); }
+
+.train-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; text-align: center; }
+.tw { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tw .d { font-size: .75rem; color: var(--muted); }
+.tw.today .d { color: var(--text); font-weight: 700; }
+.tw-box { width: 100%; max-width: 38px; aspect-ratio: 1; border-radius: 10px; background: var(--surface-2); display: grid; place-items: center; font-weight: 700; font-size: .85rem; }
+.tw.on .tw-box { background: var(--accent); color: #1a1205; }
+.tw .v { font-size: .72rem; color: var(--muted); min-height: 1em; font-variant-numeric: tabular-nums; }
+
+.w-summary { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.w-summary .n { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); font-size: .88rem; }
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .goal { stroke: var(--good); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.chart .wline { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.chart .wdot { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; }
+.chart .ax { fill: var(--muted); font-size: 10px; font-family: inherit; }
+
+.goal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.goal-grid label { display: flex; flex-direction: column; min-width: 0; }
+.goal-grid .field { width: 100%; }
