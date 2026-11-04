@@ -10,7 +10,7 @@ const dateOf = (k) => { const [y, m, d] = k.split('-').map(Number); return new D
 const shift = (k, n) => { const d = dateOf(k); d.setDate(d.getDate() + n); return keyOf(d); };
 const todayKey = () => keyOf(new Date());
 
-const SETTINGS_DEFAULT = { waterGoal: 2500, glass: 250, weightGoal: null, trainingGoal: 3 };
+const SETTINGS_DEFAULT = { waterGoal: 2500, glass: 250, weightGoal: null, trainingGoal: 3, sleepGoal: 8 };
 const TRAININGS = ['Kraft', 'Laufen', 'Rad', 'Schwimmen', 'Kampfsport', 'Yoga', 'Mobility', 'Sonstiges'];
 
 function normalize(d) {
@@ -112,6 +112,23 @@ function lastWeightBefore(k) {
     if (dk < k && d.weight != null && (!best || dk > best.k)) best = { k: dk, w: d.weight };
   }
   return best;
+}
+
+/* Schlaf: gilt für die Nacht, die an diesem Tag endet */
+const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const fromMin = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`; };
+function sleepMin(sl) {
+  if (!sl || !sl.bed || !sl.wake) return null;
+  let d = toMin(sl.wake) - toMin(sl.bed);
+  if (d <= 0) d += 1440;
+  return d;
+}
+const dur = (m) => `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`;
+const durShort = (m) => num(m / 60, 1);
+function avgClock(times, aroundMidnight) {
+  if (!times.length) return null;
+  const ms = times.map((t) => { const m = toMin(t); return aroundMidnight && m < 720 ? m + 1440 : m; });
+  return fromMin(ms.reduce((a, b) => a + b, 0) / ms.length);
 }
 
 function weekStart(k) { return shift(k, -((dateOf(k).getDay() + 6) % 7)); } // Montag
@@ -279,9 +296,28 @@ function renderHealth(k, d) {
   const weekSessions = sessionsBetween(ws, k);
   const sessions = d.training || [];
   const diff = d.weight != null && prev ? d.weight - prev.w : null;
+  const sl = d.sleep || {};
+  const sm = sleepMin(sl);
+  const goalM = S.sleepGoal * 60;
   return `
     <section class="card">
       <h2>Gesundheit</h2>
+
+      <div class="h-block">
+        <div class="h-top">
+          <span class="h-title">😴 Schlaf <small class="muted">letzte Nacht</small></span>
+          <span class="h-val ${sm != null && sm >= goalM ? 'ok' : ''}">${sm != null ? `<b>${dur(sm)}</b> / ${num(S.sleepGoal)} h` : `Ziel ${num(S.sleepGoal)} h`}</span>
+        </div>
+        ${sm != null ? `<div class="meter sleep ${sm >= goalM ? 'met' : ''}"><div style="width:${Math.min(100, (sm / goalM) * 100)}%"></div></div>` : ''}
+        <div class="sleep-row">
+          <label><span class="label">Ins Bett</span><input class="field" type="time" data-sleep="bed" value="${esc(sl.bed || '')}"></label>
+          <label><span class="label">Aufgestanden</span><input class="field" type="time" data-sleep="wake" value="${esc(sl.wake || '')}"></label>
+        </div>
+        <span class="label" style="margin-top:10px">Wie erholt fühlst du dich?</span>
+        <div class="seg">
+          ${[1, 2, 3, 4, 5].map((v) => `<button class="seg-btn" data-act="sleep-q" data-v="${v}" aria-pressed="${sl.q === v}">${v}</button>`).join('')}
+        </div>
+      </div>
 
       <div class="h-block">
         <div class="h-top">
@@ -375,6 +411,36 @@ function renderWeek() {
     ${renderWeekHealth(t, keys)}`;
 }
 
+function renderWeekSleep(t, keys) {
+  const goal = data.settings.sleepGoal;
+  const sls = keys.map((k) => day(k).sleep || null);
+  const mins = sls.map(sleepMin);
+  const valid = mins.filter((m) => m != null);
+  const avg = valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : null;
+  const beds = sls.filter((x) => x && x.bed && x.wake).map((x) => x.bed);
+  const wakes = sls.filter((x) => x && x.bed && x.wake).map((x) => x.wake);
+  const scale = Math.max(goal * 60 * 1.25, ...valid);
+  return `
+    <section class="card">
+      <h2>Schlaf <span class="count">Ziel ${num(goal)} h</span></h2>
+      <div class="stats">
+        <div class="stat"><div class="n">${avg == null ? '–' : durShort(avg)}</div><div class="t">Ø Stunden</div></div>
+        <div class="stat"><div class="n">${avgClock(beds, true) || '–'}</div><div class="t">Ø ins Bett</div></div>
+        <div class="stat"><div class="n">${avgClock(wakes, false) || '–'}</div><div class="t">Ø aufgestanden</div></div>
+      </div>
+      <div class="bars" style="margin-top:14px">
+        ${keys.map((k, i) => {
+          const m = mins[i];
+          return `<div class="bar-col ${k === t ? 'today' : ''}">
+            <span class="v">${m == null ? '–' : durShort(m)}</span>
+            <div class="bar-wrap"><div class="bar-fill sleep ${m != null && m >= goal * 60 ? 'met' : ''}" style="height:${m == null ? 0 : (m / scale) * 100}%"></div></div>
+            <span class="d">${WD[dateOf(k).getDay()]}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </section>`;
+}
+
 function renderWeekHealth(t, keys) {
   const S = data.settings;
   const waters = keys.map((k) => day(k).water || 0);
@@ -393,6 +459,8 @@ function renderWeekHealth(t, keys) {
         <div class="stat"><div class="n">${wDiff == null ? '–' : signed(wDiff)}</div><div class="t">kg Gewicht</div></div>
       </div>
     </section>
+
+    ${renderWeekSleep(t, keys)}
 
     <section class="card">
       <h2>Wasser pro Tag <span class="count">Ziel ${liters(S.waterGoal)} L</span></h2>
@@ -455,6 +523,7 @@ function renderSettings() {
         <label><span class="label">Wasser pro Tag (L)</span><input class="field" data-setting="waterGoal" inputmode="decimal" value="${num(data.settings.waterGoal / 1000, 2)}"></label>
         <label><span class="label">Glasgröße (ml)</span><input class="field" data-setting="glass" inputmode="numeric" value="${data.settings.glass}"></label>
         <label><span class="label">Zielgewicht (kg)</span><input class="field" data-setting="weightGoal" inputmode="decimal" placeholder="optional" value="${data.settings.weightGoal != null ? num(data.settings.weightGoal) : ''}"></label>
+        <label><span class="label">Schlaf pro Nacht (h)</span><input class="field" data-setting="sleepGoal" inputmode="decimal" value="${num(data.settings.sleepGoal)}"></label>
         <label><span class="label">Trainings pro Woche</span><input class="field" data-setting="trainingGoal" inputmode="numeric" value="${data.settings.trainingGoal}"></label>
       </div>
     </section>
@@ -523,6 +592,14 @@ $('#app').addEventListener('click', (e) => {
       d.water = Math.max(0, (d.water || 0) + Number(b.dataset.v) * data.settings.glass);
       save();
       if (Number(b.dataset.v) > 0 && d.water >= data.settings.waterGoal && d.water - data.settings.glass < data.settings.waterGoal) toast('Wasserziel erreicht 💧');
+      break;
+    }
+    case 'sleep-q': {
+      const d = day(viewKey, true);
+      d.sleep = d.sleep || {};
+      const v = Number(b.dataset.v);
+      d.sleep.q = d.sleep.q === v ? null : v;
+      save();
       break;
     }
     case 'del-training': {
@@ -616,6 +693,14 @@ $('#app').addEventListener('submit', (e) => {
 $('#app').addEventListener('change', (e) => {
   const el = e.target;
   if (el.hasAttribute('data-weight')) { render(); return; }
+  if (el.dataset.sleep) {
+    const d = day(viewKey, true);
+    d.sleep = d.sleep || {};
+    d.sleep[el.dataset.sleep] = /^\d{2}:\d{2}$/.test(el.value) ? el.value : null;
+    save();
+    render();
+    return;
+  }
   if (el.dataset.setting) {
     const key = el.dataset.setting;
     const n = parseNum(el.value);
@@ -624,6 +709,7 @@ $('#app').addEventListener('change', (e) => {
       glass: () => n >= 50 && n <= 2000 && Math.round(n),
       weightGoal: () => (el.value.trim() === '' ? null : n >= 20 && n <= 400 && Math.round(n * 10) / 10),
       trainingGoal: () => n >= 1 && n <= 21 && Math.round(n),
+      sleepGoal: () => n >= 4 && n <= 12 && Math.round(n * 4) / 4,
     };
     const v = rules[key]();
     if (v === false || v === undefined || Number.isNaN(v)) { toast('Ungültiger Wert'); render(); return; }
