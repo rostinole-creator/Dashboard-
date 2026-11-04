@@ -4,9 +4,10 @@ Ein schlankes Dashboard für mehr Disziplin im Alltag. Läuft im Browser auf Han
 
 ## Funktionen
 
-- **Heute**: Fortschrittsring, Top-3-Fokus-Aufgaben, Habits zum Abhaken mit 🔥-Serie, Gesundheit (😴 Schlaf mit Bett-/Aufstehzeit und Erholung, 💧 Wasser per Glas-Button, ⚖️ Gewicht, 🏋️ Training mit Art und Minuten), Abend-Check-in (Stimmung + Notiz). Mit ‹ › kannst du vergangene Tage nachtragen.
-- **Woche**: Erfüllungsquote, perfekte Tage, Ø-Stimmung, Balken pro Tag sowie pro Habit Serie, Rekord und 30-Tage-Quote. Dazu Schlafdauer und Ø Bett-/Aufstehzeit, Wasser pro Tag, Trainingstage und der Gewichtsverlauf der letzten 30 Tage.
-- **Ziele**: Gewohnheiten anlegen, sortieren, löschen. Gesundheitsziele festlegen (Schlaf pro Nacht, Wasser pro Tag, Glasgröße, Zielgewicht, Trainings pro Woche). Backup als JSON exportieren/importieren.
+- **Heute**: Fortschrittsring, Top-3-Fokus-Aufgaben, Habits zum Abhaken mit 🔥-Serie, Gesundheit (😴 Schlaf mit Bett-/Aufstehzeit und Erholung, 💧 Wasser per Glas-Button, ⚖️ Gewicht, 🏋️ Training mit Art und Minuten), Uni-Karte (heutige Vorlesungen mit „Da“/„Verpasst“, nächste Prüfung), Abend-Check-in (Stimmung, Notiz und Plan für morgen: Losgehen, Ort, erste Aufgabe – erscheint am nächsten Morgen oben). Mit ‹ › kannst du vergangene Tage nachtragen.
+- **Uni**: Prüfungs-Countdown, Lern-Timer (Pomodoro, läuft auch bei geschlossener App weiter), Anwesenheit pro Kurs, Stundenplan.
+- **Woche**: Erfüllungsquote, perfekte Tage, Ø-Stimmung, Balken pro Tag sowie pro Habit Serie, Rekord und 30-Tage-Quote. Dazu besuchte Vorlesungen und Lern-Runden, Schlafdauer und Ø Bett-/Aufstehzeit, Wasser pro Tag, Trainingstage und der Gewichtsverlauf der letzten 30 Tage.
+- **Ziele**: Gewohnheiten anlegen, sortieren, löschen. Gesundheitsziele festlegen (Schlaf pro Nacht, Wasser pro Tag, Glasgröße, Zielgewicht, Trainings pro Woche, Länge von Lern-Runde und Pause). Backup als JSON exportieren/importieren.
 
 ## Starten
 
@@ -34,4 +35,4 @@ Alles liegt lokal im Browser (`localStorage`, Schlüssel `lifedash.v1`). Es gibt
 - Sync zwischen Geräten (z. B. Supabase)
 - Erinnerungen/Push-Benachrichtigungen
 - Wochenrückblick mit Reflexionsfragen
-- Fokus-Timer (Pomodoro)
+- Lernstunden pro Fach und Prüfung

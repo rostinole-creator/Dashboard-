@@ -1,4 +1,4 @@
-const CACHE = 'lifedash-v2';
+const CACHE = 'lifedash-v3';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icons/icon.svg'];
 
 self.addEventListener('install', (e) => {
