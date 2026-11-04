@@ -1,0 +1,14 @@
+{
+  "name": "Life Dashboard",
+  "short_name": "LifeDash",
+  "description": "Habits, Tagesfokus und Abend-Check-in für mehr Disziplin.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f1115",
+  "theme_color": "#0f1115",
+  "lang": "de",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
